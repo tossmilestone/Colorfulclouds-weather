@@ -1,21 +1,26 @@
-
-
-
-
 import logging
 import json
 from datetime import datetime, timedelta
 
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.components.weather import (
-    WeatherEntity, 
+    WeatherEntity,
+    Forecast,
+    WeatherEntityFeature,
     ATTR_FORECAST_CONDITION, 
     ATTR_FORECAST_PRECIPITATION,
     ATTR_FORECAST_TEMP, 
     ATTR_FORECAST_TEMP_LOW, 
     ATTR_FORECAST_TIME, 
     ATTR_FORECAST_WIND_BEARING, 
-    ATTR_FORECAST_WIND_SPEED
+    ATTR_FORECAST_WIND_SPEED,
+    ATTR_CONDITION_CLEAR_NIGHT,
+    ATTR_CONDITION_SUNNY,
+    ATTR_FORECAST_HUMIDITY,
+    ATTR_FORECAST_IS_DAYTIME,
+    ATTR_FORECAST_NATIVE_DEW_POINT,
+    ATTR_FORECAST_NATIVE_TEMP,
+    ATTR_FORECAST_PRECIPITATION_PROBABILITY,
 )
 from homeassistant.const import (
     TEMP_CELSIUS, 
@@ -73,6 +78,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             
 class ColorfulCloudsEntity(WeatherEntity):
     """Representation of a weather condition."""
+    _attr_supported_features = (
+        WeatherEntityFeature.FORECAST_HOURLY | WeatherEntityFeature.FORECAST_DAILY
+    )
 
     def __init__(self, name, coordinator):
         
@@ -262,24 +270,29 @@ class ColorfulCloudsEntity(WeatherEntity):
         
         return data  
 
-    @property
-    def forecast(self):
-        forecast_data = []
-        for i in range(len(self.coordinator.data['result']['daily']['temperature'])):
-            time_str = self.coordinator.data['result']['daily']['temperature'][i]['date'][:10]
+    def _forecast(self, mode: str) -> list[Forecast]:
+        forecast_data: list[Forcast] = []
+        for i in range(len(self.coordinator.data['result'][mode]['temperature'])):
+            time_str = self.coordinator.data['result'][mode]['temperature'][i]['date'][:10]
             data_dict = {
                 ATTR_FORECAST_TIME: datetime.strptime(time_str, '%Y-%m-%d'),
-                ATTR_FORECAST_CONDITION: CONDITION_MAP[self.coordinator.data['result']['daily']['skycon'][i]['value']],
-                "skycon": self.coordinator.data['result']['daily']['skycon'][i]['value'],
-                ATTR_FORECAST_PRECIPITATION: self.coordinator.data['result']['daily']['precipitation'][i]['avg'],
-                ATTR_FORECAST_TEMP: self.coordinator.data['result']['daily']['temperature'][i]['max'],
-                ATTR_FORECAST_TEMP_LOW: self.coordinator.data['result']['daily']['temperature'][i]['min'],
-                ATTR_FORECAST_WIND_BEARING: self.coordinator.data['result']['daily']['wind'][i]['avg']['direction'],
-                ATTR_FORECAST_WIND_SPEED: self.coordinator.data['result']['daily']['wind'][i]['avg']['speed']
+                ATTR_FORECAST_CONDITION: CONDITION_MAP[self.coordinator.data['result'][mode]['skycon'][i]['value']],
+                "skycon": self.coordinator.data['result'][mode]['skycon'][i]['value'],
+                ATTR_FORECAST_PRECIPITATION: self.coordinator.data['result'][mode]['precipitation'][i]['avg'],
+                ATTR_FORECAST_TEMP: self.coordinator.data['result'][mode]['temperature'][i]['max'],
+                ATTR_FORECAST_TEMP_LOW: self.coordinator.data['result'][mode]['temperature'][i]['min'],
+                ATTR_FORECAST_WIND_BEARING: self.coordinator.data['result'][mode]['wind'][i]['avg']['direction'],
+                ATTR_FORECAST_WIND_SPEED: self.coordinator.data['result'][mode]['wind'][i]['avg']['speed']
             }
             forecast_data.append(data_dict)
 
         return forecast_data
+
+    async def async_forecast_daily(self) -> list[Forecast] | None:        
+        self._forecast(self, DAILY)
+
+    async def async_forecast_hourly(self) -> list[Forecast] | None:
+        self._forecast(self, HOURLY)
 
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""

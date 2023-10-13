@@ -55,6 +55,9 @@ ATTR_UNIT_METRIC = "Metric"
 MANUFACTURER = "Colorfulclouds, Inc."
 NAME = "Colorfulclouds"
 
+HOURLY = "hourly"
+DAILY = "daily"
+
 CONF_API_KEY = "api_key"
 CONF_API_VERSION = "api_version"
 CONF_LATITUDE = "latitude"
